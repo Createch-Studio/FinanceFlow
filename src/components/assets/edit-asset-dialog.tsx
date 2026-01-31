@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -12,7 +12,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   Select,
@@ -21,8 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Plus, Loader2, RefreshCw } from "lucide-react"
-import type { AssetType } from "@/lib/types"
+import { Loader2, RefreshCw } from "lucide-react"
+import type { Asset, AssetType } from "@/lib/types"
 
 const ASSET_TYPES: { value: AssetType; label: string }[] = [
   { value: "cash", label: "Tunai" },
@@ -45,15 +44,19 @@ const POPULAR_COINS = [
   { id: "chainlink", name: "Chainlink", symbol: "LINK" },
 ]
 
-export function AddAssetDialog() {
-  const [open, setOpen] = useState(false)
+interface EditAssetDialogProps {
+  asset: Asset
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+export function EditAssetDialog({ asset, open, onOpenChange }: EditAssetDialogProps) {
   const [loading, setLoading] = useState(false)
   const [fetchingPrice, setFetchingPrice] = useState(false)
   const [name, setName] = useState("")
   const [type, setType] = useState<AssetType>("cash")
   const [value, setValue] = useState("")
   const [description, setDescription] = useState("")
-  // Crypto specific fields
   const [quantity, setQuantity] = useState("")
   const [buyPrice, setBuyPrice] = useState("")
   const [currentPrice, setCurrentPrice] = useState("")
@@ -63,6 +66,19 @@ export function AddAssetDialog() {
 
   const isCrypto = type === "crypto"
 
+  useEffect(() => {
+    if (asset && open) {
+      setName(asset.name)
+      setType(asset.type)
+      setValue(asset.value?.toString() || "")
+      setDescription(asset.description || "")
+      setQuantity(asset.quantity?.toString() || "")
+      setBuyPrice(asset.buy_price?.toString() || "")
+      setCurrentPrice(asset.current_price?.toString() || "")
+      setCoinId(asset.coin_id || "")
+    }
+  }, [asset, open])
+
   const fetchCryptoPrice = async () => {
     if (!coinId) return
     setFetchingPrice(true)
@@ -71,7 +87,6 @@ export function AddAssetDialog() {
       const data = await response.json()
       if (data.price) {
         setCurrentPrice(data.price.toString())
-        // Auto-calculate value if quantity is set
         if (quantity) {
           const calculatedValue = parseFloat(quantity) * data.price
           setValue(calculatedValue.toString())
@@ -103,60 +118,45 @@ export function AddAssetDialog() {
     e.preventDefault()
     setLoading(true)
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    const assetData: Record<string, unknown> = {
-      user_id: user.id,
+    const updateData: Record<string, unknown> = {
       name,
       type,
       value: parseFloat(value) || 0,
       description: description || null,
+      updated_at: new Date().toISOString(),
     }
 
     if (isCrypto) {
-      assetData.quantity = quantity ? parseFloat(quantity) : null
-      assetData.buy_price = buyPrice ? parseFloat(buyPrice) : null
-      assetData.current_price = currentPrice ? parseFloat(currentPrice) : null
-      assetData.coin_id = coinId || null
+      updateData.quantity = quantity ? parseFloat(quantity) : null
+      updateData.buy_price = buyPrice ? parseFloat(buyPrice) : null
+      updateData.current_price = currentPrice ? parseFloat(currentPrice) : null
+      updateData.coin_id = coinId || null
+    } else {
+      // Clear crypto fields if not crypto type
+      updateData.quantity = null
+      updateData.buy_price = null
+      updateData.current_price = null
+      updateData.coin_id = null
     }
 
-    await supabase.from("assets").insert(assetData)
+    await supabase.from("assets").update(updateData).eq("id", asset.id)
 
     setLoading(false)
-    setOpen(false)
-    resetForm()
+    onOpenChange(false)
     router.refresh()
   }
 
-  const resetForm = () => {
-    setName("")
-    setType("cash")
-    setValue("")
-    setDescription("")
-    setQuantity("")
-    setBuyPrice("")
-    setCurrentPrice("")
-    setCoinId("")
-  }
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Tambah Aset
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Tambah Aset Baru</DialogTitle>
+          <DialogTitle>Edit Aset</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="type">Jenis Aset</Label>
+            <Label htmlFor="edit-type">Jenis Aset</Label>
             <Select value={type} onValueChange={(v) => setType(v as AssetType)}>
-              <SelectTrigger>
+              <SelectTrigger id="edit-type">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -172,9 +172,9 @@ export function AddAssetDialog() {
           {isCrypto && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="coin">Pilih Koin</Label>
+                <Label htmlFor="edit-coin">Pilih Koin</Label>
                 <Select value={coinId} onValueChange={handleCoinSelect}>
-                  <SelectTrigger>
+                  <SelectTrigger id="edit-coin">
                     <SelectValue placeholder="Pilih cryptocurrency..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -188,22 +188,21 @@ export function AddAssetDialog() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="quantity">Jumlah (Qty)</Label>
+                <Label htmlFor="edit-quantity">Jumlah (Qty)</Label>
                 <Input
-                  id="quantity"
+                  id="edit-quantity"
                   type="number"
                   step="any"
                   placeholder="0.00000000"
                   value={quantity}
                   onChange={(e) => handleQuantityChange(e.target.value)}
-                  required={isCrypto}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="buyPrice">Harga Beli (Rp)</Label>
+                <Label htmlFor="edit-buyPrice">Harga Beli (Rp)</Label>
                 <Input
-                  id="buyPrice"
+                  id="edit-buyPrice"
                   type="number"
                   placeholder="0"
                   value={buyPrice}
@@ -212,10 +211,10 @@ export function AddAssetDialog() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="currentPrice">Harga Saat Ini (Rp)</Label>
+                <Label htmlFor="edit-currentPrice">Harga Saat Ini (Rp)</Label>
                 <div className="flex gap-2">
                   <Input
-                    id="currentPrice"
+                    id="edit-currentPrice"
                     type="number"
                     placeholder="0"
                     value={currentPrice}
@@ -242,17 +241,38 @@ export function AddAssetDialog() {
                     )}
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Klik tombol refresh untuk mengambil harga terkini dari CoinGecko
-                </p>
               </div>
+
+              {quantity && buyPrice && currentPrice && (
+                <div className="p-3 rounded-lg bg-muted text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Nilai Beli:</span>
+                    <span>Rp {(parseFloat(quantity) * parseFloat(buyPrice)).toLocaleString('id-ID')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Nilai Saat Ini:</span>
+                    <span>Rp {(parseFloat(quantity) * parseFloat(currentPrice)).toLocaleString('id-ID')}</span>
+                  </div>
+                  <div className="flex justify-between font-medium mt-1 pt-1 border-t">
+                    <span>Profit/Loss:</span>
+                    <span className={
+                      parseFloat(currentPrice) >= parseFloat(buyPrice) 
+                        ? "text-green-600" 
+                        : "text-red-600"
+                    }>
+                      {parseFloat(currentPrice) >= parseFloat(buyPrice) ? "+" : ""}
+                      Rp {((parseFloat(quantity) * parseFloat(currentPrice)) - (parseFloat(quantity) * parseFloat(buyPrice))).toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="name">Nama Aset</Label>
+            <Label htmlFor="edit-name">Nama Aset</Label>
             <Input
-              id="name"
+              id="edit-name"
               placeholder="Contoh: Tabungan BCA, Bitcoin, Rumah"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -261,9 +281,9 @@ export function AddAssetDialog() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="value">Total Nilai (Rp)</Label>
+            <Label htmlFor="edit-value">Total Nilai (Rp)</Label>
             <Input
-              id="value"
+              id="edit-value"
               type="number"
               placeholder="0"
               value={value}
@@ -272,17 +292,12 @@ export function AddAssetDialog() {
               min="0"
               readOnly={isCrypto && !!quantity && !!currentPrice}
             />
-            {isCrypto && quantity && currentPrice && (
-              <p className="text-xs text-muted-foreground">
-                Nilai dihitung otomatis: {quantity} x Rp {parseFloat(currentPrice).toLocaleString('id-ID')}
-              </p>
-            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Keterangan (Opsional)</Label>
+            <Label htmlFor="edit-description">Keterangan (Opsional)</Label>
             <Textarea
-              id="description"
+              id="edit-description"
               placeholder="Masukkan keterangan..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -290,16 +305,26 @@ export function AddAssetDialog() {
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Menyimpan...
-              </>
-            ) : (
-              "Simpan Aset"
-            )}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => onOpenChange(false)}
+            >
+              Batal
+            </Button>
+            <Button type="submit" className="flex-1" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Menyimpan...
+                </>
+              ) : (
+                "Simpan Perubahan"
+              )}
+            </Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

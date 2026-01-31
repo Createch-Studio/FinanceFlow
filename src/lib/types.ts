@@ -56,6 +56,10 @@ export interface Asset {
   currency: string
   description: string | null
   icon: string | null
+  quantity: number | null
+  buy_price: number | null
+  current_price: number | null
+  coin_id: string | null
   created_at: string
   updated_at: string
 }
