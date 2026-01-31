@@ -1,0 +1,76 @@
+export interface Profile {
+  id: string
+  full_name: string | null
+  avatar_url: string | null
+  currency: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Category {
+  id: string
+  user_id: string
+  name: string
+  type: 'income' | 'expense'
+  icon: string | null
+  color: string | null
+  created_at: string
+}
+
+export interface Transaction {
+  id: string
+  user_id: string
+  category_id: string | null
+  amount: number
+  type: 'income' | 'expense'
+  description: string | null
+  date: string
+  created_at: string
+  updated_at: string
+  category?: Category
+}
+
+export interface Budget {
+  id: string
+  user_id: string
+  category_id: string | null
+  name: string
+  amount: number
+  period: 'weekly' | 'monthly' | 'yearly'
+  start_date: string
+  end_date: string | null
+  created_at: string
+  updated_at: string
+  category?: Category
+  spent?: number
+}
+
+export type AssetType = 'cash' | 'investment' | 'crypto' | 'property' | 'other'
+
+export interface Asset {
+  id: string
+  user_id: string
+  name: string
+  type: AssetType
+  value: number
+  currency: string
+  description: string | null
+  icon: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type TaskStatus = 'todo' | 'in_progress' | 'done'
+export type TaskPriority = 'low' | 'medium' | 'high'
+
+export interface Task {
+  id: string
+  user_id: string
+  title: string
+  description: string | null
+  status: TaskStatus
+  priority: TaskPriority
+  due_date: string | null
+  created_at: string
+  updated_at: string
+}
