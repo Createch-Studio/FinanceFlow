@@ -57,7 +57,7 @@ export function AddTransactionDialog({ categories }: AddTransactionDialogProps) 
       user_id: user.id,
       type,
       amount: parseFloat(amount),
-      category_id: categoryId,
+      category_id: categoryId || null,
       description: description || null,
       date,
     })
