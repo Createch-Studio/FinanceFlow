@@ -26,8 +26,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Search, Trash2, ChevronDown } from "lucide-react" // Tambah ikon
+import { Search, Trash2, ChevronDown } from "lucide-react"
 import type { Transaction, Category } from "@/lib/types"
+import { EditTransactionDialog } from "./EditTransactionDialog" // Import komponen Edit
 
 interface TransactionListProps {
   transactions: (Transaction & { category: Category | null })[]
@@ -39,7 +40,6 @@ export function TransactionList({ transactions, categories }: TransactionListPro
   const [typeFilter, setTypeFilter] = useState<string>("all")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   
-  // State untuk pagination
   const [visibleCount, setVisibleCount] = useState(10)
   
   const router = useRouter()
@@ -54,7 +54,6 @@ export function TransactionList({ transactions, categories }: TransactionListPro
     return matchesSearch && matchesType && matchesCategory
   })
 
-  // Data yang benar-benar ditampilkan (dipotong sesuai limit)
   const displayedTransactions = filteredTransactions.slice(0, visibleCount)
 
   const handleDelete = async (id: string) => {
@@ -78,7 +77,7 @@ export function TransactionList({ transactions, categories }: TransactionListPro
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value)
-                setVisibleCount(10) // Reset limit saat mencari
+                setVisibleCount(10)
               }}
               className="pl-9"
             />
@@ -87,7 +86,7 @@ export function TransactionList({ transactions, categories }: TransactionListPro
             value={typeFilter} 
             onValueChange={(val) => {
               setTypeFilter(val)
-              setVisibleCount(10) // Reset limit saat filter berubah
+              setVisibleCount(10)
             }}
           >
             <SelectTrigger className="w-full sm:w-40">
@@ -103,7 +102,7 @@ export function TransactionList({ transactions, categories }: TransactionListPro
             value={categoryFilter} 
             onValueChange={(val) => {
               setCategoryFilter(val)
-              setVisibleCount(10) // Reset limit saat filter berubah
+              setVisibleCount(10)
             }}
           >
             <SelectTrigger className="w-full sm:w-40">
@@ -142,6 +141,7 @@ export function TransactionList({ transactions, categories }: TransactionListPro
                     )}
                   </div>
                 </div>
+
                 <div className="flex items-center gap-3">
                   <div className="text-right">
                     <Badge variant={transaction.type === "income" ? "default" : "destructive"} className="mb-1">
@@ -156,32 +156,42 @@ export function TransactionList({ transactions, categories }: TransactionListPro
                       {formatCurrency(Number(transaction.amount))}
                     </p>
                   </div>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Hapus Transaksi?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Tindakan ini tidak dapat dibatalkan. Transaksi akan dihapus secara permanen.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Batal</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDelete(transaction.id)}>
-                          Hapus
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+
+                  {/* Bagian Aksi: Edit & Hapus */}
+                  <div className="flex items-center border-l pl-3 gap-1">
+                    {/* Tombol Edit */}
+                    <EditTransactionDialog 
+                      transaction={transaction} 
+                      categories={categories} 
+                    />
+
+                    {/* Tombol Hapus */}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Hapus Transaksi?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Tindakan ini tidak dapat dibatalkan secara permanen.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Batal</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(transaction.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Hapus
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
               </div>
             ))}
 
-            {/* Tombol Muat Lebih Banyak */}
             {filteredTransactions.length > visibleCount && (
               <div className="flex justify-center pt-4">
                 <Button 
@@ -198,8 +208,8 @@ export function TransactionList({ transactions, categories }: TransactionListPro
         ) : (
           <div className="text-center py-12 text-muted-foreground">
             {transactions.length === 0
-              ? "Belum ada transaksi. Tambahkan transaksi pertama Anda!"
-              : "Tidak ada transaksi yang cocok dengan filter."}
+              ? "Belum ada transaksi."
+              : "Tidak ada transaksi yang cocok."}
           </div>
         )}
       </CardContent>
