@@ -40,7 +40,7 @@ export function TransactionList({ transactions, categories }: TransactionListPro
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   
   // State untuk pagination
-  const [visibleCount, setVisibleCount] = useState(20)
+  const [visibleCount, setVisibleCount] = useState(10)
   
   const router = useRouter()
   const supabase = createClient()
@@ -63,7 +63,7 @@ export function TransactionList({ transactions, categories }: TransactionListPro
   }
 
   const handleLoadMore = () => {
-    setVisibleCount((prev) => prev + 20)
+    setVisibleCount((prev) => prev + 10)
   }
 
   return (
@@ -78,7 +78,7 @@ export function TransactionList({ transactions, categories }: TransactionListPro
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value)
-                setVisibleCount(20) // Reset limit saat mencari
+                setVisibleCount(10) // Reset limit saat mencari
               }}
               className="pl-9"
             />
@@ -87,7 +87,7 @@ export function TransactionList({ transactions, categories }: TransactionListPro
             value={typeFilter} 
             onValueChange={(val) => {
               setTypeFilter(val)
-              setVisibleCount(20) // Reset limit saat filter berubah
+              setVisibleCount(10) // Reset limit saat filter berubah
             }}
           >
             <SelectTrigger className="w-full sm:w-40">
@@ -103,7 +103,7 @@ export function TransactionList({ transactions, categories }: TransactionListPro
             value={categoryFilter} 
             onValueChange={(val) => {
               setCategoryFilter(val)
-              setVisibleCount(20) // Reset limit saat filter berubah
+              setVisibleCount(10) // Reset limit saat filter berubah
             }}
           >
             <SelectTrigger className="w-full sm:w-40">
