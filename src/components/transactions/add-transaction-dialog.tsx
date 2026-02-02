@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Plus, Loader2 } from "lucide-react"
+import { Plus, Loader2, AlertCircle } from "lucide-react" // Tambah AlertCircle untuk info
 import type { Category } from "@/lib/types"
 
 interface AddTransactionDialogProps {
@@ -39,12 +39,17 @@ export function AddTransactionDialog({ categories }: AddTransactionDialogProps) 
   const router = useRouter()
   const supabase = createClient()
 
+  // 1. Logika pengecekan kategori
+  const hasIncomeCategories = categories.some((c) => c.type === "income")
+  const hasExpenseCategories = categories.some((c) => c.type === "expense")
+  const canAddTransaction = hasIncomeCategories && hasExpenseCategories
+  
   const filteredCategories = categories.filter((c) => c.type === type)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!categoryId || categoryId === "") {
+    if (!categoryId) {
       alert("Silakan pilih kategori terlebih dahulu")
       return
     }
@@ -57,7 +62,7 @@ export function AddTransactionDialog({ categories }: AddTransactionDialogProps) 
       user_id: user.id,
       type,
       amount: parseFloat(amount),
-      category_id: categoryId || null,
+      category_id: categoryId,
       description: description || null,
       date,
     })
@@ -78,12 +83,22 @@ export function AddTransactionDialog({ categories }: AddTransactionDialogProps) 
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
+      {/* 2. Tambahkan kondisi disabled pada DialogTrigger */}
       <DialogTrigger asChild>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Tambah Transaksi
-        </Button>
+        <div className="inline-block"> 
+          <Button disabled={!canAddTransaction}>
+            <Plus className="mr-2 h-4 w-4" />
+            Tambah Transaksi
+          </Button>
+          {!canAddTransaction && (
+            <p className="text-[10px] text-destructive mt-1 flex items-center gap-1">
+              <AlertCircle className="h-3 w-3" />
+              Lengkapi kategori dulu
+            </p>
+          )}
+        </div>
       </DialogTrigger>
+      
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Tambah Transaksi Baru</DialogTitle>
@@ -144,8 +159,8 @@ export function AddTransactionDialog({ categories }: AddTransactionDialogProps) 
                     </SelectItem>
                   ))
                 ) : (
-                  <SelectItem value="" disabled>
-                    Buat dulu kategori {type === "income" ? "pemasukan" : "pengeluaran"}
+                  <SelectItem value="none" disabled>
+                    Kategori belum tersedia
                   </SelectItem>
                 )}
               </SelectContent>
