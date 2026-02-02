@@ -41,8 +41,8 @@ export function AddTransactionDialog({ categories }: AddTransactionDialogProps) 
 
   const filteredCategories = categories.filter((c) => c.type === type)
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault()
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
   
   // Validasi manual jika categoryId kosong
   if (!categoryId || categoryId === "") {
