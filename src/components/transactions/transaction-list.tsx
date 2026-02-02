@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Search, Trash2 } from "lucide-react"
+import { Search, Trash2, ChevronDown } from "lucide-react" // Tambah ikon
 import type { Transaction, Category } from "@/lib/types"
 
 interface TransactionListProps {
@@ -38,6 +38,10 @@ export function TransactionList({ transactions, categories }: TransactionListPro
   const [search, setSearch] = useState("")
   const [typeFilter, setTypeFilter] = useState<string>("all")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
+  
+  // State untuk pagination
+  const [visibleCount, setVisibleCount] = useState(20)
+  
   const router = useRouter()
   const supabase = createClient()
 
@@ -50,9 +54,16 @@ export function TransactionList({ transactions, categories }: TransactionListPro
     return matchesSearch && matchesType && matchesCategory
   })
 
+  // Data yang benar-benar ditampilkan (dipotong sesuai limit)
+  const displayedTransactions = filteredTransactions.slice(0, visibleCount)
+
   const handleDelete = async (id: string) => {
     await supabase.from("transactions").delete().eq("id", id)
     router.refresh()
+  }
+
+  const handleLoadMore = () => {
+    setVisibleCount((prev) => prev + 20)
   }
 
   return (
@@ -65,11 +76,20 @@ export function TransactionList({ transactions, categories }: TransactionListPro
             <Input
               placeholder="Cari transaksi..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value)
+                setVisibleCount(20) // Reset limit saat mencari
+              }}
               className="pl-9"
             />
           </div>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <Select 
+            value={typeFilter} 
+            onValueChange={(val) => {
+              setTypeFilter(val)
+              setVisibleCount(20) // Reset limit saat filter berubah
+            }}
+          >
             <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="Tipe" />
             </SelectTrigger>
@@ -79,7 +99,13 @@ export function TransactionList({ transactions, categories }: TransactionListPro
               <SelectItem value="expense">Pengeluaran</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <Select 
+            value={categoryFilter} 
+            onValueChange={(val) => {
+              setCategoryFilter(val)
+              setVisibleCount(20) // Reset limit saat filter berubah
+            }}
+          >
             <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="Kategori" />
             </SelectTrigger>
@@ -95,9 +121,9 @@ export function TransactionList({ transactions, categories }: TransactionListPro
         </div>
       </CardHeader>
       <CardContent>
-        {filteredTransactions.length > 0 ? (
+        {displayedTransactions.length > 0 ? (
           <div className="space-y-3">
-            {filteredTransactions.map((transaction) => (
+            {displayedTransactions.map((transaction) => (
               <div
                 key={transaction.id}
                 className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
@@ -154,6 +180,20 @@ export function TransactionList({ transactions, categories }: TransactionListPro
                 </div>
               </div>
             ))}
+
+            {/* Tombol Muat Lebih Banyak */}
+            {filteredTransactions.length > visibleCount && (
+              <div className="flex justify-center pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={handleLoadMore}
+                  className="w-full sm:w-auto gap-2"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                  Lihat Transaksi Sebelumnya
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-center py-12 text-muted-foreground">
