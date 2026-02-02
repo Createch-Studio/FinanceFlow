@@ -61,7 +61,6 @@ export function EditTransactionDialog({ transaction, categories }: EditTransacti
       .eq("id", transaction.id)
 
     if (error) {
-      console.error("Error updating:", error.message)
       alert("Gagal memperbarui transaksi")
     } else {
       setOpen(false)
