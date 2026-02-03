@@ -34,15 +34,20 @@ const ASSET_TYPES: { value: AssetType; label: string }[] = [
 
 const POPULAR_COINS = [
   { id: "bitcoin", name: "Bitcoin", symbol: "BTC" },
+  { id: "pax-gold", name: "PAX Gold", symbol: "PAXG" },
   { id: "ethereum", name: "Ethereum", symbol: "ETH" },
   { id: "binancecoin", name: "BNB", symbol: "BNB" },
   { id: "solana", name: "Solana", symbol: "SOL" },
   { id: "ripple", name: "XRP", symbol: "XRP" },
+  { id: "litecoin", name: "Litecoin", symbol: "LTC" },
+  { id: "polygon-ecosystem-token", name: "POL (Polygon)", symbol: "POL" },
   { id: "cardano", name: "Cardano", symbol: "ADA" },
   { id: "dogecoin", name: "Dogecoin", symbol: "DOGE" },
   { id: "polkadot", name: "Polkadot", symbol: "DOT" },
   { id: "avalanche-2", name: "Avalanche", symbol: "AVAX" },
   { id: "chainlink", name: "Chainlink", symbol: "LINK" },
+  { id: "tether", name: "Tether", symbol: "USDT" },
+  { id: "tether", name: "Tether", symbol: "USDT" },
 ]
 
 export function AddAssetDialog() {
