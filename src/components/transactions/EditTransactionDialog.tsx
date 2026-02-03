@@ -33,7 +33,6 @@ export function EditTransactionDialog({ transaction, categories }: EditTransacti
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   
-  // State awal
   const [type, setType] = useState<"income" | "expense">(transaction.type as "income" | "expense")
   const [amount, setAmount] = useState(transaction.amount.toString())
   const [categoryId, setCategoryId] = useState(transaction.category_id)
@@ -45,7 +44,6 @@ export function EditTransactionDialog({ transaction, categories }: EditTransacti
   const router = useRouter()
   const supabase = createClient()
 
-  // Ambil daftar aset untuk pilihan sumber dana
   useEffect(() => {
     async function fetchAssets() {
       const { data } = await supabase
@@ -69,7 +67,6 @@ export function EditTransactionDialog({ transaction, categories }: EditTransacti
       const oldAssetId = transaction.asset_id
       const currentAssetId = assetId
 
-      // 1. UPDATE TRANSAKSI
       const { error: updateError } = await supabase
         .from("transactions")
         .update({
@@ -84,8 +81,7 @@ export function EditTransactionDialog({ transaction, categories }: EditTransacti
 
       if (updateError) throw updateError
 
-      // 2. LOGIKA UPDATE SALDO ASET (RECONCILIATION)
-      // Langkah A: Batalkan dampak transaksi lama
+      // Langkah A: Kembalikan saldo aset lama
       if (oldAssetId) {
         const reverseAdjustment = transaction.type === "expense" ? oldAmount : -oldAmount
         await supabase.rpc('update_asset_balance', {
@@ -94,7 +90,7 @@ export function EditTransactionDialog({ transaction, categories }: EditTransacti
         })
       }
 
-      // Langkah B: Terapkan dampak transaksi baru
+      // Langkah B: Terapkan saldo aset baru
       if (currentAssetId) {
         const newAdjustment = type === "expense" ? -newAmount : newAmount
         await supabase.rpc('update_asset_balance', {
@@ -106,11 +102,12 @@ export function EditTransactionDialog({ transaction, categories }: EditTransacti
       setOpen(false)
       router.refresh()
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : "Terjadi kesalahan"
-      alert("Gagal memperbarui transaksi: " + errorMessage)
+      const msg = err instanceof Error ? err.message : "Terjadi kesalahan"
+      alert("Gagal memperbarui: " + msg)
     } finally {
-  setLoading(false)
+      setLoading(false)
     }
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -124,7 +121,6 @@ export function EditTransactionDialog({ transaction, categories }: EditTransacti
           <DialogTitle>Edit Transaksi</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Tipe Transaksi */}
           <div className="space-y-2">
             <Label>Tipe Transaksi</Label>
             <div className="flex gap-2">
@@ -153,7 +149,6 @@ export function EditTransactionDialog({ transaction, categories }: EditTransacti
             </div>
           </div>
 
-          {/* Jumlah */}
           <div className="space-y-2">
             <Label htmlFor="edit-amount">Jumlah (Rp)</Label>
             <Input
@@ -165,7 +160,6 @@ export function EditTransactionDialog({ transaction, categories }: EditTransacti
             />
           </div>
 
-          {/* Aset / Sumber Dana */}
           <div className="space-y-2">
             <Label>Sumber Dana / Akun</Label>
             <Select value={assetId} onValueChange={setAssetId} required>
@@ -185,7 +179,6 @@ export function EditTransactionDialog({ transaction, categories }: EditTransacti
             </Select>
           </div>
 
-          {/* Kategori */}
           <div className="space-y-2">
             <Label htmlFor="edit-category">Kategori</Label>
             <Select value={categoryId ?? ""} onValueChange={setCategoryId} required>
@@ -202,7 +195,6 @@ export function EditTransactionDialog({ transaction, categories }: EditTransacti
             </Select>
           </div>
 
-          {/* Tanggal */}
           <div className="space-y-2">
             <Label htmlFor="edit-date">Tanggal</Label>
             <Input
@@ -214,7 +206,6 @@ export function EditTransactionDialog({ transaction, categories }: EditTransacti
             />
           </div>
 
-          {/* Keterangan */}
           <div className="space-y-2">
             <Label htmlFor="edit-description">Keterangan (Opsional)</Label>
             <Textarea
@@ -228,10 +219,7 @@ export function EditTransactionDialog({ transaction, categories }: EditTransacti
 
           <Button type="submit" className="w-full" disabled={loading || !categoryId || !assetId}>
             {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Memperbarui...
-              </>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               "Simpan Perubahan"
             )}
