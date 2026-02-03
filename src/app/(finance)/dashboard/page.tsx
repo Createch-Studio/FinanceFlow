@@ -3,7 +3,7 @@ import { formatCurrency } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DashboardCharts } from "@/components/finance/dashboard-charts"
 import { RecentTransactions } from "@/components/finance/recent-transactions"
-import { ArrowDownLeft, ArrowUpRight, Wallet, TrendingUp } from "lucide-react"
+import { ArrowDownLeft, ArrowUpRight, Wallet, TrendingUp, Landmark } from "lucide-react"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -24,6 +24,7 @@ export default async function DashboardPage() {
   const transactions = transactionsResult.data || []
   const assets = assetsResult.data || []
 
+  // Menghitung arus kas bulan ini
   const totalIncome = transactions
     .filter((t) => t.type === "income")
     .reduce((sum, t) => sum + Number(t.amount), 0)
@@ -32,21 +33,30 @@ export default async function DashboardPage() {
     .filter((t) => t.type === "expense")
     .reduce((sum, t) => sum + Number(t.amount), 0)
 
-  const totalAssets = assets.reduce((sum, a) => sum + Number(a.value), 0)
   const balance = totalIncome - totalExpense
+
+  /**
+   * PERBAIKAN LOGIKA:
+   * Menghitung Kekayaan Bersih (Net Worth).
+   * Nilai dengan tipe 'debt' akan mengurangi total.
+   */
+  const netWorth = assets.reduce((sum, a) => {
+    if (a.type === 'debt') return sum - Number(a.value)
+    return sum + Number(a.value)
+  }, 0)
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">Ringkasan keuangan bulan ini</p>
+        <p className="text-muted-foreground">Ringkasan keuangan dan kekayaan bersih Anda</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Pemasukan
+              Pemasukan Bulan Ini
             </CardTitle>
             <ArrowDownLeft className="h-4 w-4 text-green-500" />
           </CardHeader>
@@ -60,7 +70,7 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Pengeluaran
+              Pengeluaran Bulan Ini
             </CardTitle>
             <ArrowUpRight className="h-4 w-4 text-red-500" />
           </CardHeader>
@@ -74,7 +84,7 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Saldo Bulan Ini
+              Sisa Saldo (Arus Kas)
             </CardTitle>
             <Wallet className="h-4 w-4 text-primary" />
           </CardHeader>
@@ -88,12 +98,14 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Aset
+              Kekayaan Bersih
             </CardTitle>
             <TrendingUp className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalAssets)}</div>
+            <div className={`text-2xl font-bold ${netWorth < 0 ? "text-red-600" : ""}`}>
+              {formatCurrency(netWorth)}
+            </div>
           </CardContent>
         </Card>
       </div>
