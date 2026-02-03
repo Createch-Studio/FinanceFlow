@@ -28,7 +28,8 @@ import {
   Pencil,
   RefreshCw,
   Loader2,
-  TrendingDown
+  TrendingDown,
+  ChevronDown // Tambahkan ikon ini
 } from "lucide-react"
 import { EditAssetDialog } from "./edit-asset-dialog"
 import type { Asset } from "@/lib/types"
@@ -48,8 +49,19 @@ interface AssetListProps {
 export function AssetList({ assets }: AssetListProps) {
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null)
   const [updatingPrices, setUpdatingPrices] = useState(false)
+  
+  // State untuk pagination
+  const [visibleCount, setVisibleCount] = useState(10)
+  
   const router = useRouter()
   const supabase = createClient()
+
+  // Filter data yang ditampilkan berdasarkan limit
+  const displayedAssets = assets.slice(0, visibleCount)
+
+  const handleLoadMore = () => {
+    setVisibleCount((prev) => prev + 10)
+  }
 
   const handleDelete = async (id: string) => {
     await supabase.from("assets").delete().eq("id", id)
@@ -92,10 +104,6 @@ export function AssetList({ assets }: AssetListProps) {
         router.refresh()
       }
     } catch (error) {
-      // Hapus console.error("Error updating prices:", error)
-      // Sebagai gantinya, kamu bisa membiarkannya kosong atau memberikan notifikasi UI
-      // eslint-disable-next-line no-console
-      // console.error("Gagal memperbarui harga:", error); 
        alert("Gagal mengambil harga terbaru. Silakan coba input manual.");
     }
     setUpdatingPrices(false)
@@ -140,7 +148,7 @@ export function AssetList({ assets }: AssetListProps) {
         <CardContent>
           {assets.length > 0 ? (
             <div className="space-y-3">
-              {assets.map((asset) => {
+              {displayedAssets.map((asset) => { // Menggunakan displayedAssets
                 const config = ASSET_CONFIG[asset.type as keyof typeof ASSET_CONFIG] || ASSET_CONFIG.other
                 const Icon = config.icon
                 const profitLoss = asset.type === "crypto" ? calculateProfitLoss(asset) : null
@@ -234,6 +242,20 @@ export function AssetList({ assets }: AssetListProps) {
                   </div>
                 )
               })}
+
+              {/* Tombol Muat Lebih Banyak */}
+              {assets.length > visibleCount && (
+                <div className="flex justify-center pt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={handleLoadMore}
+                    className="w-full sm:w-auto gap-2"
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                    Lihat Aset Sebelumnya
+                  </Button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
