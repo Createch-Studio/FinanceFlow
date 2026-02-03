@@ -21,14 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Plus, Loader2, Wallet, Coins, Landmark, TrendingUp } from "lucide-react"
+import { Plus, Loader2 } from "lucide-react" // Hapus Wallet, Coins, Landmark, TrendingUp karena tidak dipakai
 import type { AssetType } from "@/lib/types"
 
 export function AddAssetDialog() {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  
-  // State Form sesuai kategori Anda
   const [type, setType] = useState<AssetType>("spending_account")
   const [name, setName] = useState("")
   const [value, setValue] = useState("")
@@ -47,7 +45,6 @@ export function AddAssetDialog() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error("Silakan login kembali")
 
-      // Logika khusus: Jika hutang, simpan sebagai angka negatif
       const rawValue = parseFloat(value) || 0
       const finalValue = type === "debt" ? -Math.abs(rawValue) : rawValue
 
@@ -55,7 +52,7 @@ export function AddAssetDialog() {
         user_id: user.id,
         name,
         type,
-        value: finalValue, // Ini yang akan muncul di dashboard
+        value: finalValue,
         quantity: type === "crypto" ? parseFloat(quantity) : null,
         coin_id: type === "crypto" ? coinId : null,
         description: description || null,
@@ -68,10 +65,10 @@ export function AddAssetDialog() {
       setName("")
       setValue("")
       setQuantity("")
-      setOpen(false)
       router.refresh()
-    } catch (err: any) {
-      alert(err.message || "Gagal menyimpan aset")
+    } catch (err: unknown) { // Ganti 'any' menjadi 'unknown'
+      const errorMessage = err instanceof Error ? err.message : "Gagal menyimpan aset"
+      alert(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -89,7 +86,6 @@ export function AddAssetDialog() {
           <DialogTitle>Tambah Data Keuangan</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          
           <div className="space-y-2">
             <Label>Kategori</Label>
             <Select value={type} onValueChange={(v: AssetType) => setType(v)}>
@@ -112,14 +108,13 @@ export function AddAssetDialog() {
           <div className="space-y-2">
             <Label>Nama Aset</Label>
             <Input 
-              placeholder="Contoh: BCA, Wallet, Toko Crypto, atau Rumah" 
+              placeholder="Contoh: BCA, Wallet, Toko Crypto" 
               value={name} 
               onChange={(e) => setName(e.target.value)} 
               required 
             />
           </div>
 
-          {/* Field KHUSUS CRYPTO */}
           {type === "crypto" && (
             <div className="p-3 bg-slate-50 rounded-lg space-y-3 border">
               <div className="space-y-2">
