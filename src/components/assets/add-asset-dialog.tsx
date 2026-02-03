@@ -103,14 +103,14 @@ export function AddAssetDialog() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const assetData: Record<string, any> = {
-      user_id: user.id,
-      name,
-      type,
-      value: parseFloat(value) || 0,
-      description: description || null,
-      updated_at: new Date().toISOString(),
-    }
+    const assetData: Record<string, string | number | boolean | null> = {
+    user_id: user.id,
+    name,
+    type,
+    value: parseFloat(value) || 0,
+    description: description || null,
+    updated_at: new Date().toISOString(),
+  }
 
     if (isCrypto) {
       assetData.quantity = quantity ? parseFloat(quantity) : null
