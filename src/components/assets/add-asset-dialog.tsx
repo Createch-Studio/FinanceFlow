@@ -21,32 +21,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Plus, Loader2 } from "lucide-react"
+import { Plus, Loader2, Wallet, Coins, Landmark, TrendingUp } from "lucide-react"
 import type { AssetType } from "@/lib/types"
 
 export function AddAssetDialog() {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [type, setType] = useState<AssetType>("spending_account")
   
-  // State Form
+  // State Form sesuai kategori Anda
+  const [type, setType] = useState<AssetType>("spending_account")
   const [name, setName] = useState("")
   const [value, setValue] = useState("")
-  const [quantity, setQuantity] = useState("") // Wajib untuk Crypto
-  const [coinId, setCoinId] = useState("")     // Wajib untuk Crypto
+  const [quantity, setQuantity] = useState("") 
+  const [coinId, setCoinId] = useState("")     
   const [description, setDescription] = useState("")
 
   const router = useRouter()
   const supabase = createClient()
-
-  const resetForm = () => {
-    setName("")
-    setValue("")
-    setQuantity("")
-    setCoinId("")
-    setDescription("")
-    setType("spending_account")
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,30 +45,33 @@ export function AddAssetDialog() {
 
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error("User tidak ditemukan")
+      if (!user) throw new Error("Silakan login kembali")
 
-      // Logika: Jika Crypto, nilai total = quantity * current_price (opsional awal)
-      // Tapi untuk pertama kali, kita simpan nominal yang diinput user
-      const payload = {
+      // Logika khusus: Jika hutang, simpan sebagai angka negatif
+      const rawValue = parseFloat(value) || 0
+      const finalValue = type === "debt" ? -Math.abs(rawValue) : rawValue
+
+      const { error } = await supabase.from("assets").insert({
         user_id: user.id,
         name,
         type,
-        value: parseFloat(value) || 0,
+        value: finalValue, // Ini yang akan muncul di dashboard
         quantity: type === "crypto" ? parseFloat(quantity) : null,
         coin_id: type === "crypto" ? coinId : null,
         description: description || null,
-        currency: "IDR",
-      }
+        currency: "IDR"
+      })
 
-      const { error } = await supabase.from("assets").insert(payload)
       if (error) throw error
 
       setOpen(false)
-      resetForm()
+      setName("")
+      setValue("")
+      setQuantity("")
+      setOpen(false)
       router.refresh()
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Gagal menambah aset"
-      alert(msg)
+    } catch (err: any) {
+      alert(err.message || "Gagal menyimpan aset")
     } finally {
       setLoading(false)
     }
@@ -86,27 +80,31 @@ export function AddAssetDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" /> Tambah Aset
+        <Button className="bg-blue-600 hover:bg-blue-700">
+          <Plus className="mr-2 h-4 w-4" /> Tambah Aset / Utang
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Tambah Aset / Kewajiban</DialogTitle>
+          <DialogTitle>Tambah Data Keuangan</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          
           <div className="space-y-2">
-            <Label>Jenis Aset</Label>
+            <Label>Kategori</Label>
             <Select value={type} onValueChange={(v: AssetType) => setType(v)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="spending_account">Rekening / Dompet</SelectItem>
-                <SelectItem value="cash">Uang Tunai</SelectItem>
+                <SelectItem value="spending_account">Spending (Dompet/Bank)</SelectItem>
+                <SelectItem value="cash">Simpanan (Tabungan)</SelectItem>
+                <SelectItem value="investment">Investasi (Saham/Reksadana)</SelectItem>
                 <SelectItem value="crypto">Crypto</SelectItem>
-                <SelectItem value="investment">Investasi</SelectItem>
-                <SelectItem value="debt">Hutang (Kewajiban)</SelectItem>
+                <SelectItem value="property">Properti</SelectItem>
+                <SelectItem value="receivable">Piutang (Orang Utang ke Kita)</SelectItem>
+                <SelectItem value="debt">Utang (Kewajiban)</SelectItem>
+                <SelectItem value="other">Lainnya</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -114,17 +112,18 @@ export function AddAssetDialog() {
           <div className="space-y-2">
             <Label>Nama Aset</Label>
             <Input 
-              placeholder={type === "crypto" ? "Contoh: Portofolio ETH" : "Contoh: Bank BCA"} 
+              placeholder="Contoh: BCA, Wallet, Toko Crypto, atau Rumah" 
               value={name} 
               onChange={(e) => setName(e.target.value)} 
               required 
             />
           </div>
 
+          {/* Field KHUSUS CRYPTO */}
           {type === "crypto" && (
-            <>
+            <div className="p-3 bg-slate-50 rounded-lg space-y-3 border">
               <div className="space-y-2">
-                <Label>Pilih Koin (ID CoinGecko)</Label>
+                <Label>Pilih Koin</Label>
                 <Select value={coinId} onValueChange={setCoinId} required>
                   <SelectTrigger>
                     <SelectValue placeholder="Pilih koin" />
@@ -132,8 +131,8 @@ export function AddAssetDialog() {
                   <SelectContent>
                     <SelectItem value="bitcoin">Bitcoin (BTC)</SelectItem>
                     <SelectItem value="ethereum">Ethereum (ETH)</SelectItem>
-                    <SelectItem value="binancecoin">BNB</SelectItem>
                     <SelectItem value="solana">Solana (SOL)</SelectItem>
+                    <SelectItem value="tether">Tether (USDT)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -142,19 +141,20 @@ export function AddAssetDialog() {
                 <Input 
                   type="number" 
                   step="any" 
-                  placeholder="0.00" 
+                  placeholder="0.0001" 
                   value={quantity} 
                   onChange={(e) => setQuantity(e.target.value)} 
                   required 
                 />
               </div>
-            </>
+            </div>
           )}
 
           <div className="space-y-2">
-            <Label>Total Nilai Saat Ini (Rp)</Label>
+            <Label>{type === "debt" ? "Jumlah Utang (Rp)" : "Total Nilai / Saldo (Rp)"}</Label>
             <Input 
               type="number" 
+              placeholder="Masukkan nominal" 
               value={value} 
               onChange={(e) => setValue(e.target.value)} 
               required 
@@ -162,14 +162,15 @@ export function AddAssetDialog() {
           </div>
 
           <div className="space-y-2">
-            <Label>Keterangan (Opsional)</Label>
+            <Label>Keterangan</Label>
             <Textarea 
+              placeholder="Catatan tambahan..." 
               value={description} 
               onChange={(e) => setDescription(e.target.value)} 
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading}>
             {loading ? <Loader2 className="animate-spin h-4 w-4" /> : "Simpan Data"}
           </Button>
         </form>
