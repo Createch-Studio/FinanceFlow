@@ -26,7 +26,8 @@ import type { AssetType } from "@/lib/types"
 
 // Update daftar tipe aset
 const ASSET_TYPES: { value: AssetType; label: string }[] = [
-  { value: "cash", label: "Tunai" },
+  { value: "spending_account", label: "Spending Account" },
+  { value: "cash", label: "Saving" },
   { value: "investment", label: "Investasi" },
   { value: "crypto", label: "Crypto" },
   { value: "property", label: "Properti" },

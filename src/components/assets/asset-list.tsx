@@ -38,6 +38,7 @@ import { UpdateDebtDialog } from "./update-debt-dialog"
 import type { Asset } from "@/lib/types"
 
 const ASSET_CONFIG = {
+  spending_account: { label: "Spending Account", icon: Landmark, color: "bg-indigo-100 text-indigo-600" },
   cash: { label: "Tunai", icon: Wallet, color: "bg-blue-100 text-blue-600" },
   investment: { label: "Investasi", icon: TrendingUp, color: "bg-green-100 text-green-600" },
   crypto: { label: "Crypto", icon: Bitcoin, color: "bg-orange-100 text-orange-600" },
