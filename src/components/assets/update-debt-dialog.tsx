@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { formatCurrency } from "@/lib/utils"
@@ -21,8 +21,9 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch" // Pastikan sudah install: npx shadcn@latest add switch
 import { Loader2 } from "lucide-react"
-import type { Asset } from "@/lib/types"
+import type { Asset, Category } from "@/lib/types"
 
 interface UpdateDebtDialogProps {
   asset: Asset
@@ -34,10 +35,27 @@ export function UpdateDebtDialog({ asset, open, onOpenChange }: UpdateDebtDialog
   const [loading, setLoading] = useState(false)
   const [amount, setAmount] = useState("")
   const [paymentType, setPaymentType] = useState<string>("partial")
+  const [recordTransaction, setRecordTransaction] = useState(true)
+  const [categoryId, setCategoryId] = useState<string>("")
+  const [categories, setCategories] = useState<Category[]>([])
   
   const router = useRouter()
   const supabase = createClient()
   const isDebt = asset.type === "debt"
+
+  // Ambil kategori untuk pilihan transaksi
+  useEffect(() => {
+    async function fetchCategories() {
+      const type = isDebt ? "expense" : "income"
+      const { data } = await supabase
+        .from("categories")
+        .select("*")
+        .eq("type", type)
+        .order("name")
+      if (data) setCategories(data)
+    }
+    if (open) fetchCategories()
+  }, [open, isDebt, supabase])
 
   const handleUpdate = async () => {
     setLoading(true)
@@ -54,14 +72,17 @@ export function UpdateDebtDialog({ asset, open, onOpenChange }: UpdateDebtDialog
         updated_at: new Date().toISOString() 
       }).eq("id", asset.id)
 
-      // 2. Catat Transaksi
-      await supabase.from("transactions").insert({
-        user_id: user.id,
-        type: isDebt ? "expense" : "income",
-        amount: payAmount,
-        description: `${isDebt ? 'Bayar' : 'Terima'} ${asset.name} (${paymentType === 'full' ? 'Lunas' : 'Cicil'})`,
-        date: new Date().toISOString().split('T')[0],
-      })
+      // 2. Catat Transaksi jika opsi diaktifkan
+      if (recordTransaction) {
+        await supabase.from("transactions").insert({
+          user_id: user.id,
+          type: isDebt ? "expense" : "income",
+          amount: payAmount,
+          category_id: categoryId || null,
+          description: `${isDebt ? 'Bayar' : 'Terima'} ${asset.name} (${paymentType === 'full' ? 'Lunas' : 'Cicil'})`,
+          date: new Date().toISOString().split('T')[0],
+        })
+      }
 
       onOpenChange(false)
       router.refresh()
@@ -78,9 +99,9 @@ export function UpdateDebtDialog({ asset, open, onOpenChange }: UpdateDebtDialog
         <DialogHeader>
           <DialogTitle>{isDebt ? "Update Utang" : "Update Piutang"}</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
+        <div className="grid gap-5 py-4">
           <div className="bg-muted/50 p-4 rounded-xl border border-dashed text-center">
-            <p className="text-xs text-muted-foreground uppercase font-semibold">Sisa Saldo</p>
+            <p className="text-xs text-muted-foreground uppercase font-semibold">Sisa Saldo Saat Ini</p>
             <p className="text-xl font-bold">{formatCurrency(Number(asset.value))}</p>
           </div>
           
@@ -106,8 +127,36 @@ export function UpdateDebtDialog({ asset, open, onOpenChange }: UpdateDebtDialog
                 placeholder="0"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                autoFocus
               />
+            </div>
+          )}
+
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-accent/50">
+            <div className="space-y-0.5">
+              <Label className="text-sm">Catat sebagai Transaksi</Label>
+              <p className="text-[10px] text-muted-foreground">Masukkan dalam laporan pengeluaran/pemasukan</p>
+            </div>
+            <Switch 
+              checked={recordTransaction} 
+              onCheckedChange={setRecordTransaction} 
+            />
+          </div>
+
+          {recordTransaction && (
+            <div className="space-y-2">
+              <Label>Pilih Kategori Transaksi</Label>
+              <Select value={categoryId} onValueChange={setCategoryId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih kategori..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
         </div>
@@ -115,10 +164,10 @@ export function UpdateDebtDialog({ asset, open, onOpenChange }: UpdateDebtDialog
           <Button 
             className="w-full" 
             onClick={handleUpdate} 
-            disabled={loading || (paymentType === 'partial' && !amount)}
+            disabled={loading || (paymentType === 'partial' && !amount) || (recordTransaction && !categoryId)}
           >
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Simpan Perubahan
+            Konfirmasi Perubahan
           </Button>
         </DialogFooter>
       </DialogContent>
