@@ -90,9 +90,11 @@ export function AssetList({ assets }: AssetListProps) {
 
   const handleDelete = async (id: string) => {
     try {
-      await supabase.from("assets").delete().eq("id", id)
+      const { error } = await supabase.from("assets").delete().eq("id", id)
+      if (error) throw error
       router.refresh()
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error("Delete error:", error)
       alert("Gagal menghapus aset")
     }
   }
@@ -124,7 +126,8 @@ export function AssetList({ assets }: AssetListProps) {
         }
         router.refresh()
       }
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error("Update prices error:", error)
       alert("Gagal update harga crypto")
     } finally {
       setUpdatingPrices(false)
@@ -176,7 +179,6 @@ export function AssetList({ assets }: AssetListProps) {
                 const isDebt = asset.type === "debt"
                 const isDebtOrReceivable = asset.type === "debt" || asset.type === "receivable"
                 
-                // Kalkulasi Persentase Profit/Loss untuk Crypto
                 const isCrypto = asset.type === "crypto"
                 let changePercent = 0
                 if (isCrypto && asset.buy_price && asset.current_price) {
@@ -190,7 +192,16 @@ export function AssetList({ assets }: AssetListProps) {
                         <Icon className="h-5 w-5" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="font-semibold truncate">{asset.name}</p>
+                        {/* HEADER NAMA & KETERANGAN */}
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold truncate">{asset.name}</p>
+                          {asset.description && (
+                            <span className="text-[11px] text-muted-foreground truncate border-l pl-2 italic max-w-[120px] sm:max-w-[200px]">
+                              {asset.description}
+                            </span>
+                          )}
+                        </div>
+                        
                         <div className="flex items-center gap-2 mt-1">
                           <Badge variant="secondary" className="text-[10px] uppercase font-bold px-1.5 h-4">
                             {config.label}
@@ -208,7 +219,6 @@ export function AssetList({ assets }: AssetListProps) {
                           {isDebt ? "-" : ""}{formatCurrency(Number(asset.value))}
                         </p>
                         
-                        {/* Render Persentase hanya untuk Crypto yang punya harga beli */}
                         {isCrypto && asset.buy_price && asset.current_price && (
                           <div className={`flex items-center gap-1 mt-1 text-[11px] font-bold ${changePercent >= 0 ? "text-green-600" : "text-red-600"}`}>
                             {changePercent >= 0 ? (
