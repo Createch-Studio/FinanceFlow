@@ -61,7 +61,7 @@ export function AddAssetDialog() {
     try {
       const res = await fetch(`/api/crypto/price?coinId=${coinId}`)
       const data = await res.json()
-      if (data.prices {
+      if (data.prices) {
         const price = data.prices[coinId]
         setCurrentPrice(price.toString())
         if (quantity) {
