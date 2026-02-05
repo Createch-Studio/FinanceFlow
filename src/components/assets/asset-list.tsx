@@ -93,8 +93,7 @@ export function AssetList({ assets }: AssetListProps) {
       const { error } = await supabase.from("assets").delete().eq("id", id)
       if (error) throw error
       router.refresh()
-    } catch (error: unknown) {
-      console.error("Delete error:", error)
+    } catch (_error) {
       alert("Gagal menghapus aset")
     }
   }
@@ -126,8 +125,7 @@ export function AssetList({ assets }: AssetListProps) {
         }
         router.refresh()
       }
-    } catch (error: unknown) {
-      console.error("Update prices error:", error)
+    } catch (_error) {
       alert("Gagal update harga crypto")
     } finally {
       setUpdatingPrices(false)
@@ -192,7 +190,6 @@ export function AssetList({ assets }: AssetListProps) {
                         <Icon className="h-5 w-5" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        {/* HEADER NAMA & KETERANGAN */}
                         <div className="flex items-center gap-2">
                           <p className="font-semibold truncate">{asset.name}</p>
                           {asset.description && (
@@ -255,7 +252,7 @@ export function AssetList({ assets }: AssetListProps) {
                           <AlertDialogContent>
                             <AlertDialogHeader>
                               <AlertDialogTitle>Hapus Data?</AlertDialogTitle>
-                              <AlertDialogDescription>Tindakan ini tidak dapat dibatalkan dan akan menghapus aset selamanya.</AlertDialogDescription>
+                              <AlertDialogDescription>Tindakan ini tidak dapat dibatalkan.</AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Batal</AlertDialogCancel>
