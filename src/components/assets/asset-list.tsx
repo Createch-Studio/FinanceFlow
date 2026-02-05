@@ -58,6 +58,7 @@ const FILTER_OPTIONS = [
   { value: "property", label: "Properti" },
   { value: "receivable", label: "Piutang" },
   { value: "debt", label: "Utang" },
+  { value: "other", label: "Lainya" },
 ]
 
 interface AssetListProps {

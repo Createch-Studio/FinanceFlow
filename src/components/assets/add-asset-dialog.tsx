@@ -61,11 +61,11 @@ export function AddAssetDialog() {
     try {
       const res = await fetch(`/api/crypto/price?coinId=${coinId}`)
       const data = await res.json()
-      if (data.prices && data.prices[coinId]) {
+      if (data.prices {
         const price = data.prices[coinId]
         setCurrentPrice(price.toString())
         if (quantity) {
-          const total = parseFloat(quantity) * price
+          const total = parseFloat(quantity) * data.price
           setValue(Math.round(total).toString())
         }
       }
@@ -171,6 +171,9 @@ export function AddAssetDialog() {
                     <SelectItem value="bitcoin">Bitcoin (BTC)</SelectItem>
                     <SelectItem value="ethereum">Ethereum (ETH)</SelectItem>
                     <SelectItem value="solana">Solana (SOL)</SelectItem>
+                    <SelectItem value="ripple">XRP (XRP)</SelectItem>
+                    <SelectItem value="chainlink">Chainlink (LINK)</SelectItem>
+                    <SelectItem value="usdcoin">USDC (USDC)</SelectItem>
                     <SelectItem value="tether">Tether (USDT)</SelectItem>
                   </SelectContent>
                 </Select>
