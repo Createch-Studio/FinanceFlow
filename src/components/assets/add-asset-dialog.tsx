@@ -59,7 +59,7 @@ export function AddAssetDialog() {
     if (!coinId) return alert("Pilih koin terlebih dahulu")
     setFetchingPrice(true)
     try {
-      const res = await fetch(`/api/crypto/price?ids=${coinId}`)
+      const res = await fetch(`/api/crypto/price?coinId=${coinId}`)
       const data = await res.json()
       if (data.prices && data.prices[coinId]) {
         const price = data.prices[coinId]
