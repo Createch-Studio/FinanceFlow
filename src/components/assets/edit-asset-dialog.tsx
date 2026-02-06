@@ -23,11 +23,15 @@ import {
 import { Loader2, RefreshCw } from "lucide-react"
 import type { Asset, AssetType } from "@/lib/types"
 
+// UPDATE: Samakan daftar ini dengan AddAssetDialog agar semua tipe aset terbaca
 const ASSET_TYPES: { value: AssetType; label: string }[] = [
-  { value: "cash", label: "Tunai" },
+  { value: "spending_account", label: "Spending Account" },
+  { value: "cash", label: "Simpanan (Tunai/Bank)" },
   { value: "investment", label: "Investasi" },
   { value: "crypto", label: "Crypto" },
   { value: "property", label: "Properti" },
+  { value: "receivable", label: "Piutang" },
+  { value: "debt", label: "Utang" },
   { value: "other", label: "Lainnya" },
 ]
 
@@ -85,21 +89,20 @@ export function EditAssetDialog({ asset, open, onOpenChange }: EditAssetDialogPr
     try {
       const response = await fetch(`/api/crypto/price?coinId=${coinId}`)
       const data = await response.json()
-      if (data.price) {
-        setCurrentPrice(data.price.toString())
+      const price = data.prices ? data.prices[coinId] : data.price
+      
+      if (price) {
+        setCurrentPrice(price.toString())
         if (quantity) {
-          const calculatedValue = parseFloat(quantity) * data.price
-          setValue(calculatedValue.toString())
+          const calculatedValue = parseFloat(quantity) * price
+          setValue(Math.round(calculatedValue).toString())
         }
       }
-    } catch (error) {
-      // Opsi 1: Menggunakan komentar abaikan (disarankan jika ingin tetap melacak error)
-      // eslint-disable-next-line no-console
-      // console.error("Error fetching price:", error)
+    } catch {
       alert("Gagal mengambil harga terbaru. Silakan coba input manual.");
-      // Opsi 2: Hapus console.error dan biarkan kosong atau ganti dengan toast/alert
+    } finally {
+      setFetchingPrice(false)
     }
-    setFetchingPrice(false)
   }
 
   const handleCoinSelect = (selectedCoinId: string) => {
@@ -114,7 +117,7 @@ export function EditAssetDialog({ asset, open, onOpenChange }: EditAssetDialogPr
     setQuantity(newQuantity)
     if (currentPrice && newQuantity) {
       const calculatedValue = parseFloat(newQuantity) * parseFloat(currentPrice)
-      setValue(calculatedValue.toString())
+      setValue(Math.round(calculatedValue).toString())
     }
   }
 
@@ -122,39 +125,44 @@ export function EditAssetDialog({ asset, open, onOpenChange }: EditAssetDialogPr
     e.preventDefault()
     setLoading(true)
 
-    const updateData: Record<string, unknown> = {
-      name,
-      type,
-      value: parseFloat(value) || 0,
-      description: description || null,
-      updated_at: new Date().toISOString(),
+    try {
+        const updateData: Record<string, any> = {
+          name,
+          type,
+          value: parseFloat(value) || 0,
+          description: description || null,
+          updated_at: new Date().toISOString(),
+        }
+    
+        if (isCrypto) {
+          updateData.quantity = quantity ? parseFloat(quantity) : null
+          updateData.buy_price = buyPrice ? parseFloat(buyPrice) : null
+          updateData.current_price = currentPrice ? parseFloat(currentPrice) : null
+          updateData.coin_id = coinId || null
+        } else {
+          updateData.quantity = null
+          updateData.buy_price = null
+          updateData.current_price = null
+          updateData.coin_id = null
+        }
+    
+        const { error } = await supabase.from("assets").update(updateData).eq("id", asset.id)
+        if (error) throw error
+
+        onOpenChange(false)
+        router.refresh()
+    } catch {
+        alert("Gagal menyimpan perubahan")
+    } finally {
+        setLoading(false)
     }
-
-    if (isCrypto) {
-      updateData.quantity = quantity ? parseFloat(quantity) : null
-      updateData.buy_price = buyPrice ? parseFloat(buyPrice) : null
-      updateData.current_price = currentPrice ? parseFloat(currentPrice) : null
-      updateData.coin_id = coinId || null
-    } else {
-      // Clear crypto fields if not crypto type
-      updateData.quantity = null
-      updateData.buy_price = null
-      updateData.current_price = null
-      updateData.coin_id = null
-    }
-
-    await supabase.from("assets").update(updateData).eq("id", asset.id)
-
-    setLoading(false)
-    onOpenChange(false)
-    router.refresh()
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Aset</DialogTitle>
+          <DialogTitle>Edit {type === "debt" ? "Kewajiban" : "Aset"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -191,27 +199,28 @@ export function EditAssetDialog({ asset, open, onOpenChange }: EditAssetDialogPr
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="edit-quantity">Jumlah (Qty)</Label>
-                <Input
-                  id="edit-quantity"
-                  type="number"
-                  step="any"
-                  placeholder="0.00000000"
-                  value={quantity}
-                  onChange={(e) => handleQuantityChange(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="edit-buyPrice">Harga Beli (Rp)</Label>
-                <Input
-                  id="edit-buyPrice"
-                  type="number"
-                  placeholder="0"
-                  value={buyPrice}
-                  onChange={(e) => setBuyPrice(e.target.value)}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-quantity">Jumlah (Qty)</Label>
+                    <Input
+                      id="edit-quantity"
+                      type="number"
+                      step="any"
+                      placeholder="0.00"
+                      value={quantity}
+                      onChange={(e) => handleQuantityChange(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-buyPrice">Harga Beli (Rp)</Label>
+                    <Input
+                      id="edit-buyPrice"
+                      type="number"
+                      placeholder="0"
+                      value={buyPrice}
+                      onChange={(e) => setBuyPrice(e.target.value)}
+                    />
+                  </div>
               </div>
 
               <div className="space-y-2">
@@ -226,7 +235,7 @@ export function EditAssetDialog({ asset, open, onOpenChange }: EditAssetDialogPr
                       setCurrentPrice(e.target.value)
                       if (quantity && e.target.value) {
                         const calculatedValue = parseFloat(quantity) * parseFloat(e.target.value)
-                        setValue(calculatedValue.toString())
+                        setValue(Math.round(calculatedValue).toString())
                       }
                     }}
                   />
@@ -236,48 +245,18 @@ export function EditAssetDialog({ asset, open, onOpenChange }: EditAssetDialogPr
                     size="icon"
                     onClick={fetchCryptoPrice}
                     disabled={!coinId || fetchingPrice}
-                    title="Ambil harga dari CoinGecko"
                   >
-                    {fetchingPrice ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4" />
-                    )}
+                    {fetchingPrice ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                   </Button>
                 </div>
               </div>
-
-              {quantity && buyPrice && currentPrice && (
-                <div className="p-3 rounded-lg bg-muted text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Nilai Beli:</span>
-                    <span>Rp {(parseFloat(quantity) * parseFloat(buyPrice)).toLocaleString('id-ID')}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Nilai Saat Ini:</span>
-                    <span>Rp {(parseFloat(quantity) * parseFloat(currentPrice)).toLocaleString('id-ID')}</span>
-                  </div>
-                  <div className="flex justify-between font-medium mt-1 pt-1 border-t">
-                    <span>Profit/Loss:</span>
-                    <span className={
-                      parseFloat(currentPrice) >= parseFloat(buyPrice) 
-                        ? "text-green-600" 
-                        : "text-red-600"
-                    }>
-                      {parseFloat(currentPrice) >= parseFloat(buyPrice) ? "+" : ""}
-                      Rp {((parseFloat(quantity) * parseFloat(currentPrice)) - (parseFloat(quantity) * parseFloat(buyPrice))).toLocaleString('id-ID')}
-                    </span>
-                  </div>
-                </div>
-              )}
             </>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="edit-name">Nama Aset</Label>
+            <Label htmlFor="edit-name">{type === "debt" ? "Nama Kreditur" : "Nama Aset"}</Label>
             <Input
               id="edit-name"
-              placeholder="Contoh: Tabungan BCA, Bitcoin, Rumah"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -289,12 +268,11 @@ export function EditAssetDialog({ asset, open, onOpenChange }: EditAssetDialogPr
             <Input
               id="edit-value"
               type="number"
-              placeholder="0"
               value={value}
               onChange={(e) => setValue(e.target.value)}
               required
-              min="0"
               readOnly={isCrypto && !!quantity && !!currentPrice}
+              className={isCrypto && !!quantity && !!currentPrice ? "bg-muted" : ""}
             />
           </div>
 
@@ -302,7 +280,6 @@ export function EditAssetDialog({ asset, open, onOpenChange }: EditAssetDialogPr
             <Label htmlFor="edit-description">Keterangan (Opsional)</Label>
             <Textarea
               id="edit-description"
-              placeholder="Masukkan keterangan..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
@@ -318,15 +295,8 @@ export function EditAssetDialog({ asset, open, onOpenChange }: EditAssetDialogPr
             >
               Batal
             </Button>
-            <Button type="submit" className="flex-1" disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Menyimpan...
-                </>
-              ) : (
-                "Simpan Perubahan"
-              )}
+            <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={loading}>
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Simpan Perubahan"}
             </Button>
           </div>
         </form>
