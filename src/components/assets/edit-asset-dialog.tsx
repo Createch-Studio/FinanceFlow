@@ -23,7 +23,6 @@ import {
 import { Loader2, RefreshCw } from "lucide-react"
 import type { Asset, AssetType } from "@/lib/types"
 
-// UPDATE: Samakan daftar ini dengan AddAssetDialog agar semua tipe aset terbaca
 const ASSET_TYPES: { value: AssetType; label: string }[] = [
   { value: "spending_account", label: "Spending Account" },
   { value: "cash", label: "Simpanan (Tunai/Bank)" },
@@ -94,12 +93,12 @@ export function EditAssetDialog({ asset, open, onOpenChange }: EditAssetDialogPr
       if (price) {
         setCurrentPrice(price.toString())
         if (quantity) {
-          const calculatedValue = parseFloat(quantity) * price
+          const calculatedValue = parseFloat(quantity) * (price as number)
           setValue(Math.round(calculatedValue).toString())
         }
       }
     } catch {
-      alert("Gagal mengambil harga terbaru. Silakan coba input manual.");
+      alert("Gagal mengambil harga terbaru. Silakan coba input manual.")
     } finally {
       setFetchingPrice(false)
     }
@@ -126,28 +125,31 @@ export function EditAssetDialog({ asset, open, onOpenChange }: EditAssetDialogPr
     setLoading(true)
 
     try {
-        const updateData: Record<string, any> = {
+        // PERBAIKAN: Menentukan tipe data secara eksplisit, bukan 'any'
+        const updateData: {
+          name: string;
+          type: AssetType;
+          value: number;
+          description: string | null;
+          updated_at: string;
+          quantity: number | null;
+          buy_price: number | null;
+          current_price: number | null;
+          coin_id: string | null;
+        } = {
           name,
           type,
           value: parseFloat(value) || 0,
           description: description || null,
           updated_at: new Date().toISOString(),
+          quantity: isCrypto && quantity ? parseFloat(quantity) : null,
+          buy_price: isCrypto && buyPrice ? parseFloat(buyPrice) : null,
+          current_price: isCrypto && currentPrice ? parseFloat(currentPrice) : null,
+          coin_id: isCrypto ? coinId : null,
         }
     
-        if (isCrypto) {
-          updateData.quantity = quantity ? parseFloat(quantity) : null
-          updateData.buy_price = buyPrice ? parseFloat(buyPrice) : null
-          updateData.current_price = currentPrice ? parseFloat(currentPrice) : null
-          updateData.coin_id = coinId || null
-        } else {
-          updateData.quantity = null
-          updateData.buy_price = null
-          updateData.current_price = null
-          updateData.coin_id = null
-        }
-    
-        const { error } = await supabase.from("assets").update(updateData).eq("id", asset.id)
-        if (error) throw error
+        const { error: updateError } = await supabase.from("assets").update(updateData).eq("id", asset.id)
+        if (updateError) throw updateError
 
         onOpenChange(false)
         router.refresh()
