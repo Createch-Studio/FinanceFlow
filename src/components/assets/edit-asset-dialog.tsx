@@ -39,15 +39,30 @@ const ASSET_TYPES: { value: AssetType; label: string }[] = [
 ]
 
 const POPULAR_COINS = [
+  { id: "none", name: "Saham", symbol: "Saham" },
+  { id: "none", name: "Reksadana", symbol: "REKSADANA" },
+  { id: "none", name: "Emas", symbol: "EMAS" },
   { id: "bitcoin", name: "Bitcoin", symbol: "BTC" },
   { id: "ethereum", name: "Ethereum", symbol: "ETH" },
   { id: "binancecoin", name: "BNB", symbol: "BNB" },
   { id: "solana", name: "Solana", symbol: "SOL" },
   { id: "ripple", name: "XRP", symbol: "XRP" },
+  { id: "polygon-ecosystem-token", name: "Polygon", symbol: "POL" },
+  { id: "chainlink", name: "Chainlink", symbol: "LINK" },
   { id: "tether", name: "USDT", symbol: "USDT" },
   { id: "usd-coin", name: "USDC", symbol: "USDC" },
   { id: "aave", name: "Aave", symbol: "AAVE" },
   { id: "dai", name: "DAI", symbol: "DAI" },
+  { id: "pax-gold", name: "PAX Gold", symbol: "PAXG" },
+  { id: "tether-gold", name: "Tether Gold", symbol: "XAUT" },
+  { id: "taiwan-semiconductor-manufacturing-ondo-tokenized-stock", name: "Taiwan Semiconductor Manufacturing (Ondo Tokenized Stock)", symbol: "TSMON" },
+  { id: "alibaba-ondo-tokenized-stock", name: "Alibaba (Ondo Tokenized Stock)", symbol: "BABAON" },
+  { id: "airbnb-ondo-tokenized-stock", name: "Airbnb (Ondo Tokenized Stock)", symbol: "ABNBON" },
+  { id: "nvidia-ondo-tokenized-stock", name: "NVIDIA (Ondo Tokenized Stock)", symbol: "NVDAON" },
+  { id: "amd-ondo-tokenized-stock", name: "AMD (Ondo Tokenized Stock)", symbol: "AMDON" },
+  { id: "intel-ondo-tokenized-stock", name: "Intel (Ondo Tokenized Stock)", symbol: "INTCON" },
+  { id: "amazon-ondo-tokenized-stock", name: "Amazon (Ondo Tokenized Stock)", symbol: "AMZNON" },
+  { id: "apple-ondo-tokenized-stock", name: "Apple (Ondo Tokenized Stock)", symbol: "AAPLON" },
 ]
 
 interface EditAssetDialogProps {
