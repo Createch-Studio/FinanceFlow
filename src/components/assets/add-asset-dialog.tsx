@@ -45,9 +45,10 @@ const POPULAR_COINS = [
   { id: "binancecoin", name: "BNB", symbol: "BNB" },
   { id: "solana", name: "Solana", symbol: "SOL" },
   { id: "ripple", name: "XRP", symbol: "XRP" },
-  { id: "cardano", name: "Cardano", symbol: "ADA" },
   { id: "tether", name: "USDT", symbol: "USDT" },
   { id: "usd-coin", name: "USDC", symbol: "USDC" },
+  { id: "aave", name: "Aave", symbol: "AAVE" },
+  { id: "dai", name: "DAI", symbol: "DAI" },
 ]
 
 /* ================= COMPONENT ================= */
@@ -61,6 +62,7 @@ export function AddAssetDialog() {
   const [fetchingPrice, setFetchingPrice] = useState(false)
 
   const [type, setType] = useState<AssetType>("spending_account")
+  const [isCryptoBased, setIsCryptoBased] = useState(false) // Toggle untuk Utang/Piutang Crypto
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [quantity, setQuantity] = useState("")
@@ -71,6 +73,11 @@ export function AddAssetDialog() {
 
   const isCrypto = type === "crypto"
   const isInvestment = type === "investment"
+  const isDebt = type === "debt"
+  const isReceivable = type === "receivable"
+  
+  // Logic: Apakah form harus menampilkan input Qty & Coin?
+  const showCryptoFields = isCrypto || isInvestment || ( (isDebt || isReceivable) && isCryptoBased );
 
   /* ================= DERIVED ================= */
 
@@ -84,12 +91,12 @@ export function AddAssetDialog() {
   }, [qty, buy])
 
   const currentValue = useMemo(() => {
-    if (isCrypto || isInvestment) {
+    if (showCryptoFields) {
       if (!qty || !current) return 0
       return Math.round(qty * current)
     }
     return Math.abs(Number(manualValue) || 0)
-  }, [qty, current, manualValue, isCrypto, isInvestment])
+  }, [qty, current, manualValue, showCryptoFields])
 
   const profitLoss = currentValue - initialValue
 
@@ -98,7 +105,10 @@ export function AddAssetDialog() {
   const handleCoinSelect = (id: string) => {
     setCoinId(id)
     const coin = POPULAR_COINS.find(c => c.id === id)
-    if (coin) setName(`${coin.name} (${coin.symbol})`)
+    if (coin) {
+        const prefix = isDebt ? "Pinjaman" : isReceivable ? "Piutang" : "";
+        setName(`${prefix} ${coin.name} (${coin.symbol})`.trim())
+    }
   }
 
   const fetchCryptoPrice = async () => {
@@ -107,7 +117,6 @@ export function AddAssetDialog() {
     try {
       const res = await fetch(`/api/crypto/price?coinId=${coinId}`)
       const data = await res.json()
-      // Menggunakan casting 'as' yang aman untuk menghindari 'any'
       const price = (data.price ?? data.prices?.[coinId]) as number | undefined
       if (price) setCurrentPrice(String(price))
     } catch {
@@ -119,6 +128,7 @@ export function AddAssetDialog() {
 
   const resetForm = () => {
     setType("spending_account")
+    setIsCryptoBased(false)
     setName("")
     setDescription("")
     setQuantity("")
@@ -140,11 +150,11 @@ export function AddAssetDialog() {
         user_id: authData.user.id,
         name,
         type,
-        quantity: isCrypto || isInvestment ? qty : null,
+        quantity: showCryptoFields ? qty : null,
         buy_price: buy || null,
         current_price: current || null,
         value: currentValue,
-        coin_id: isCrypto ? coinId : null,
+        coin_id: showCryptoFields ? coinId : null,
         description: description || null,
         currency: "IDR",
       })
@@ -174,13 +184,16 @@ export function AddAssetDialog() {
 
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Tambah {type === "debt" ? "Kewajiban" : "Aset"}</DialogTitle>
+          <DialogTitle>Tambah {isDebt ? "Kewajiban" : "Aset"}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label>Kategori</Label>
-            <Select value={type} onValueChange={v => setType(v as AssetType)}>
+            <Select value={type} onValueChange={v => {
+                setType(v as AssetType);
+                if (v !== "debt" && v !== "receivable") setIsCryptoBased(false);
+            }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {ASSET_TYPES.map(t => (
@@ -190,37 +203,52 @@ export function AddAssetDialog() {
             </Select>
           </div>
 
-          {(isCrypto || isInvestment) && (
+          {/* Toggle Khusus Utang/Piutang Crypto */}
+          {(isDebt || isReceivable) && (
+            <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/20">
+              <input 
+                type="checkbox" 
+                id="crypto-toggle" 
+                checked={isCryptoBased} 
+                onChange={(e) => setIsCryptoBased(e.target.checked)}
+                className="h-4 w-4"
+              />
+              <Label htmlFor="crypto-toggle" className="text-xs cursor-pointer">
+                Ini adalah {isDebt ? "utang" : "piutang"} dalam bentuk Crypto (DeFi/Aave)
+              </Label>
+            </div>
+          )}
+
+          {/* CRYPTO FIELDS */}
+          {showCryptoFields && (
             <>
-              {isCrypto && (
-                <div>
-                  <Label>Pilih Koin</Label>
-                  <Select value={coinId} onValueChange={handleCoinSelect}>
-                    <SelectTrigger><SelectValue placeholder="Pilih koin" /></SelectTrigger>
-                    <SelectContent>
-                      {POPULAR_COINS.map(c => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name} ({c.symbol})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              <div>
+                <Label>Pilih Koin</Label>
+                <Select value={coinId} onValueChange={handleCoinSelect}>
+                  <SelectTrigger><SelectValue placeholder="Pilih koin" /></SelectTrigger>
+                  <SelectContent>
+                    {POPULAR_COINS.map(c => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} ({c.symbol})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-[10px] uppercase text-muted-foreground">Qty</Label>
+                  <Label className="text-[10px] uppercase text-muted-foreground">Qty Koin</Label>
                   <Input placeholder="0.00" type="number" step="any" value={quantity} onChange={e => setQuantity(e.target.value)} />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[10px] uppercase text-muted-foreground">Harga Beli</Label>
+                  <Label className="text-[10px] uppercase text-muted-foreground">Harga Pinjam/Beli</Label>
                   <Input placeholder="0" type="number" value={buyPrice} onChange={e => setBuyPrice(e.target.value)} />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <Label className="text-[10px] uppercase text-muted-foreground">Harga Saat Ini</Label>
+                <Label className="text-[10px] uppercase text-muted-foreground">Harga Koin Saat Ini</Label>
                 <div className="flex gap-2">
                   <Input
                     placeholder="0"
@@ -228,25 +256,21 @@ export function AddAssetDialog() {
                     value={currentPrice}
                     onChange={e => setCurrentPrice(e.target.value)}
                   />
-                  {isCrypto && (
-                    <Button type="button" size="icon" variant="outline" onClick={fetchCryptoPrice} disabled={fetchingPrice}>
-                      {fetchingPrice ? <Loader2 className="animate-spin h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
-                    </Button>
-                  )}
+                  <Button type="button" size="icon" variant="outline" onClick={fetchCryptoPrice} disabled={fetchingPrice || !coinId}>
+                    {fetchingPrice ? <Loader2 className="animate-spin h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
+                  </Button>
                 </div>
               </div>
 
               {qty > 0 && (
                 <div className="text-xs border rounded p-3 bg-muted/50 space-y-1">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Modal:</span>
+                    <span className="text-muted-foreground">Nilai Awal:</span>
                     <span>Rp {initialValue.toLocaleString("id-ID")}</span>
                   </div>
                   <div className="flex justify-between font-medium border-t pt-1 mt-1">
-                    <span>Estimasi Profit:</span>
-                    <span className={profitLoss >= 0 ? "text-green-600" : "text-red-600"}>
-                      {profitLoss >= 0 ? "+" : ""}Rp {profitLoss.toLocaleString("id-ID")}
-                    </span>
+                    <span>Nilai Sekarang:</span>
+                    <span>Rp {currentValue.toLocaleString("id-ID")}</span>
                   </div>
                 </div>
               )}
@@ -254,11 +278,11 @@ export function AddAssetDialog() {
           )}
 
           <div className="space-y-1">
-            <Label>{type === "debt" ? "Nama Kreditur" : "Nama Aset"}</Label>
-            <Input placeholder="Contoh: Tabungan BCA" value={name} onChange={e => setName(e.target.value)} required />
+            <Label>{isDebt ? "Nama Kreditur / Protokol" : "Nama Aset"}</Label>
+            <Input placeholder={isDebt ? "Contoh: Aave V3 (Pinjaman)" : "Contoh: Tabungan BCA"} value={name} onChange={e => setName(e.target.value)} required />
           </div>
 
-          {!isCrypto && !isInvestment && (
+          {!showCryptoFields && (
             <div className="space-y-1">
               <Label>Total Nilai (Rp)</Label>
               <Input

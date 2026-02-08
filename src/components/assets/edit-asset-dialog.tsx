@@ -46,9 +46,9 @@ const POPULAR_COINS = [
   { id: "ripple", name: "XRP", symbol: "XRP" },
   { id: "tether", name: "USDT", symbol: "USDT" },
   { id: "usd-coin", name: "USDC", symbol: "USDC" },
+  { id: "aave", name: "Aave", symbol: "AAVE" },
+  { id: "dai", name: "DAI", symbol: "DAI" },
 ]
-
-/* ================= TYPES ================= */
 
 interface EditAssetDialogProps {
   asset: Asset
@@ -56,13 +56,7 @@ interface EditAssetDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-/* ================= COMPONENT ================= */
-
-export function EditAssetDialog({
-  asset,
-  open,
-  onOpenChange,
-}: EditAssetDialogProps) {
+export function EditAssetDialog({ asset, open, onOpenChange }: EditAssetDialogProps) {
   const router = useRouter()
   const supabase = createClient()
 
@@ -70,6 +64,7 @@ export function EditAssetDialog({
   const [fetchingPrice, setFetchingPrice] = useState(false)
 
   const [type, setType] = useState<AssetType>("cash")
+  const [isCryptoBased, setIsCryptoBased] = useState(false) // State untuk mendeteksi mode crypto
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [quantity, setQuantity] = useState("")
@@ -80,6 +75,11 @@ export function EditAssetDialog({
 
   const isCrypto = type === "crypto"
   const isInvestment = type === "investment"
+  const isDebt = type === "debt"
+  const isReceivable = type === "receivable"
+
+  // Logika penentuan apakah field koin harus muncul
+  const showCryptoFields = isCrypto || isInvestment || ((isDebt || isReceivable) && isCryptoBased)
 
   /* ================= INIT STATE ================= */
 
@@ -94,6 +94,9 @@ export function EditAssetDialog({
     setCurrentPrice(asset.current_price?.toString() ?? "")
     setManualValue(asset.value?.toString() ?? "")
     setCoinId(asset.coin_id ?? "")
+    
+    // Aktifkan mode crypto based jika data yang diedit punya coin_id (DeFi)
+    setIsCryptoBased(!!asset.coin_id)
   }, [asset, open])
 
   /* ================= DERIVED ================= */
@@ -108,12 +111,12 @@ export function EditAssetDialog({
   }, [qty, buy])
 
   const currentValue = useMemo(() => {
-    if (isCrypto || isInvestment) {
+    if (showCryptoFields) {
       if (!qty || !current) return 0
       return Math.round(qty * current)
     }
     return Math.abs(Number(manualValue) || 0)
-  }, [qty, current, manualValue, isCrypto, isInvestment])
+  }, [qty, current, manualValue, showCryptoFields])
 
   const profitLoss = currentValue - initialValue
 
@@ -122,7 +125,10 @@ export function EditAssetDialog({
   const handleCoinSelect = (id: string) => {
     setCoinId(id)
     const coin = POPULAR_COINS.find(c => c.id === id)
-    if (coin) setName(`${coin.name} (${coin.symbol})`)
+    if (coin) {
+      const prefix = isDebt ? "Pinjaman" : isReceivable ? "Piutang" : ""
+      setName(`${prefix} ${coin.name} (${coin.symbol})`.trim())
+    }
   }
 
   const fetchCryptoPrice = async () => {
@@ -149,12 +155,12 @@ export function EditAssetDialog({
         name,
         type,
         description: description || null,
-        quantity: isCrypto || isInvestment ? qty : null,
-        buy_price: isCrypto || isInvestment ? buy || null : null,
-        current_price: isCrypto || isInvestment ? current || null : null,
-        initial_value: isCrypto || isInvestment ? initialValue : null,
+        quantity: showCryptoFields ? qty : null,
+        buy_price: showCryptoFields ? buy || null : null,
+        current_price: showCryptoFields ? current || null : null,
+        initial_value: showCryptoFields ? initialValue : null,
         value: currentValue,
-        coin_id: isCrypto ? coinId : null,
+        coin_id: showCryptoFields ? coinId : null,
         updated_at: new Date().toISOString(),
       }
 
@@ -168,8 +174,8 @@ export function EditAssetDialog({
       onOpenChange(false)
       router.refresh()
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Gagal menyimpan perubahan"
-      alert(errorMessage)
+      const msg = err instanceof Error ? err.message : "Gagal menyimpan perubahan"
+      alert(msg)
     } finally {
       setLoading(false)
     }
@@ -181,101 +187,87 @@ export function EditAssetDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit {type === "debt" ? "Kewajiban" : "Aset"}</DialogTitle>
+          <DialogTitle>Edit {isDebt ? "Kewajiban" : "Aset"}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label>Kategori</Label>
-            <Select value={type} onValueChange={v => setType(v as AssetType)}>
+            <Select value={type} onValueChange={v => {
+              setType(v as AssetType)
+              if (v !== "debt" && v !== "receivable") setIsCryptoBased(false)
+            }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {ASSET_TYPES.map(t => (
-                  <SelectItem key={t.value} value={t.value}>
-                    {t.label}
-                  </SelectItem>
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          {(isCrypto || isInvestment) && (
+          {(isDebt || isReceivable) && (
+            <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/20">
+              <input 
+                type="checkbox" 
+                id="edit-crypto-toggle" 
+                checked={isCryptoBased} 
+                onChange={(e) => setIsCryptoBased(e.target.checked)}
+                className="h-4 w-4"
+              />
+              <Label htmlFor="edit-crypto-toggle" className="text-xs cursor-pointer">
+                Ubah ke mode pinjaman Crypto (Aave/DeFi)
+              </Label>
+            </div>
+          )}
+
+          {showCryptoFields && (
             <>
-              {isCrypto && (
-                <div>
-                  <Label>Pilih Koin</Label>
-                  <Select value={coinId} onValueChange={handleCoinSelect}>
-                    <SelectTrigger><SelectValue placeholder="Pilih koin" /></SelectTrigger>
-                    <SelectContent>
-                      {POPULAR_COINS.map(c => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name} ({c.symbol})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              <div>
+                <Label>Pilih Koin</Label>
+                <Select value={coinId} onValueChange={handleCoinSelect}>
+                  <SelectTrigger><SelectValue placeholder="Pilih koin" /></SelectTrigger>
+                  <SelectContent>
+                    {POPULAR_COINS.map(c => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} ({c.symbol})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label className="text-[10px] uppercase text-muted-foreground">Qty</Label>
-                  <Input
-                    placeholder="0.00"
-                    type="number"
-                    step="any"
-                    value={quantity}
-                    onChange={e => setQuantity(e.target.value)}
-                  />
+                  <Input type="number" step="any" value={quantity} onChange={e => setQuantity(e.target.value)} />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[10px] uppercase text-muted-foreground">Harga Beli</Label>
-                  <Input
-                    placeholder="0"
-                    type="number"
-                    value={buyPrice}
-                    onChange={e => setBuyPrice(e.target.value)}
-                  />
+                  <Label className="text-[10px] uppercase text-muted-foreground">Harga Modal</Label>
+                  <Input type="number" value={buyPrice} onChange={e => setBuyPrice(e.target.value)} />
                 </div>
               </div>
 
               <div className="space-y-1">
                 <Label className="text-[10px] uppercase text-muted-foreground">Harga Saat Ini</Label>
                 <div className="flex gap-2">
-                  <Input
-                    placeholder="0"
-                    type="number"
-                    value={currentPrice}
-                    onChange={e => setCurrentPrice(e.target.value)}
-                  />
-                  {isCrypto && (
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="outline"
-                      onClick={fetchCryptoPrice}
-                      disabled={!coinId || fetchingPrice}
-                    >
-                      {fetchingPrice ? (
-                        <Loader2 className="animate-spin h-4 w-4" />
-                      ) : (
-                        <RefreshCw className="h-4 w-4" />
-                      )}
-                    </Button>
-                  )}
+                  <Input type="number" value={currentPrice} onChange={e => setCurrentPrice(e.target.value)} />
+                  <Button type="button" size="icon" variant="outline" onClick={fetchCryptoPrice} disabled={!coinId || fetchingPrice}>
+                    {fetchingPrice ? <Loader2 className="animate-spin h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
+                  </Button>
                 </div>
               </div>
 
               {qty > 0 && (
                 <div className="text-xs border rounded p-3 bg-muted/50 space-y-1">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Modal Awal:</span>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Modal Awal:</span>
                     <span>Rp {initialValue.toLocaleString("id-ID")}</span>
                   </div>
-                  <div className="flex justify-between font-medium border-t pt-1 mt-1">
-                    <span>Estimasi Profit:</span>
+                  <div className="flex justify-between font-medium border-t pt-1">
+                    <span>Nilai Sekarang:</span>
                     <span className={profitLoss >= 0 ? "text-green-600" : "text-red-600"}>
-                      {profitLoss >= 0 ? "+" : ""}Rp {profitLoss.toLocaleString("id-ID")}
+                      Rp {currentValue.toLocaleString("id-ID")}
                     </span>
                   </div>
                 </div>
@@ -284,31 +276,20 @@ export function EditAssetDialog({
           )}
 
           <div className="space-y-1">
-            <Label>{type === "debt" ? "Nama Kreditur" : "Nama Aset"}</Label>
+            <Label>{isDebt ? "Nama Kreditur / Protokol" : "Nama Aset"}</Label>
             <Input value={name} onChange={e => setName(e.target.value)} required />
           </div>
 
-          {!isCrypto && !isInvestment && (
+          {!showCryptoFields && (
             <div className="space-y-1">
               <Label>Total Nilai (Rp)</Label>
-              <Input
-                placeholder="0"
-                type="number"
-                value={manualValue}
-                onChange={e => setManualValue(e.target.value)}
-                required
-              />
+              <Input type="number" value={manualValue} onChange={e => setManualValue(e.target.value)} required />
             </div>
           )}
 
           <div className="space-y-1">
             <Label>Keterangan</Label>
-            <Textarea
-              placeholder="Catatan tambahan..."
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              rows={2}
-            />
+            <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} />
           </div>
 
           <div className="flex gap-2 pt-2">
