@@ -40,9 +40,9 @@ const ASSET_TYPES: { value: AssetType; label: string }[] = [
 ]
 
 const POPULAR_COINS = [
-  { id: "none", name: "Saham", symbol: "Saham" },
-  { id: "none", name: "Reksadana", symbol: "REKSADANA" },
-  { id: "none", name: "Emas", symbol: "EMAS" },
+  { id: "none1", name: "Saham", symbol: "Saham" },
+  { id: "none2", name: "Reksadana", symbol: "REKSADANA" },
+  { id: "none3", name: "Emas", symbol: "EMAS" },
   { id: "bitcoin", name: "Bitcoin", symbol: "BTC" },
   { id: "ethereum", name: "Ethereum", symbol: "ETH" },
   { id: "binancecoin", name: "BNB", symbol: "BNB" },
